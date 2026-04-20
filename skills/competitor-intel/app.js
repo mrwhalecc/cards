@@ -105,9 +105,13 @@ const CompetitorIntel = (() => {
         count.textContent = monitors.length;
 
         if (monitors.length === 0) {
-            renderEmptyMonitors();
+            // 没有数据时显示引导页和演示示例
+            showGuideMode();
             return;
         }
+
+        // 有数据时显示真实数据区域
+        showDataMode();
 
         list.innerHTML = monitors.map(m => `
             <div class="monitor-card ${m.status === 'active' ? '' : 'paused'}" data-id="${m.id}">
@@ -135,6 +139,28 @@ const CompetitorIntel = (() => {
                 </div>
             </div>
         `).join('');
+    }
+
+    /**
+     * 显示引导模式（首次使用）
+     */
+    function showGuideMode() {
+        document.getElementById('guideSection').style.display = 'block';
+        document.getElementById('demoSection').style.display = 'block';
+        document.getElementById('statsSection').style.display = 'none';
+        document.getElementById('monitorsSection').style.display = 'none';
+        document.getElementById('alertsSection').style.display = 'none';
+    }
+
+    /**
+     * 显示数据模式（有监控数据）
+     */
+    function showDataMode() {
+        document.getElementById('guideSection').style.display = 'none';
+        document.getElementById('demoSection').style.display = 'none';
+        document.getElementById('statsSection').style.display = 'grid';
+        document.getElementById('monitorsSection').style.display = 'block';
+        document.getElementById('alertsSection').style.display = 'block';
     }
 
     /**

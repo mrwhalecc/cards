@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>竞品情报员 - Cards</title>
-    <meta name="description" content="持续监控竞品动态，变化自动告警">
+    <title>竞品情报员 - 帮您盯着竞争对手</title>
+    <meta name="description" content="自动监控竞品网站，有变化马上通知您">
     
     <!-- 样式 -->
     <link rel="stylesheet" href="../../css/variables.css">
@@ -20,7 +20,10 @@
                     <path d="M19 12H5M12 19l-7-7 7-7"/>
                 </svg>
             </button>
-            <h1>竞品情报员</h1>
+            <div class="header-title">
+                <h1>竞品情报员</h1>
+                <p class="header-subtitle">帮您盯着竞争对手</p>
+            </div>
             <div class="header-actions">
                 <button class="ui-btn ui-btn-secondary" id="refreshBtn" title="刷新全部">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -35,22 +38,108 @@
             </div>
         </header>
 
+        <!-- 新手引导（首次使用显示） -->
+        <section class="guide-section" id="guideSection">
+            <div class="guide-card">
+                <div class="guide-icon">📊</div>
+                <h2>什么是竞品情报员？</h2>
+                <p class="guide-desc">就像请了一个私家侦探，帮您天天盯着竞争对手的网站，他们一改价格、一出新产品、一做活动，马上告诉您！</p>
+                
+                <div class="guide-steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-text">
+                            <strong>添加竞品</strong>
+                            <span>输入对手公司名字和网站</span>
+                        </div>
+                    </div>
+                    <div class="step-arrow">→</div>
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-text">
+                            <strong>系统自动监控</strong>
+                            <span>24小时自动查看对方网站</span>
+                        </div>
+                    </div>
+                    <div class="step-arrow">→</div>
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-text">
+                            <strong>变化通知您</strong>
+                            <span>有变动马上在这显示</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="ui-btn ui-btn-primary guide-btn" onclick="showModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    添加第一个竞品
+                </button>
+                
+                <p class="guide-hint">或者先看看下面的演示示例 ↓</p>
+            </div>
+        </section>
+
+        <!-- 演示示例 -->
+        <section class="demo-section" id="demoSection">
+            <div class="section-header">
+                <h2>🎯 演示示例</h2>
+                <span class="section-tag">这是演示，帮您了解功能</span>
+            </div>
+            <div class="demo-card">
+                <div class="demo-header">
+                    <div class="demo-avatar">阿</div>
+                    <div class="demo-info">
+                        <h3>阿里巴巴（演示）</h3>
+                        <a href="https://www.alibaba.com" target="_blank">www.alibaba.com</a>
+                    </div>
+                    <div class="demo-status">
+                        <span class="status-dot active"></span>
+                        <span>监控中</span>
+                    </div>
+                </div>
+                
+                <div class="demo-dims">
+                    <span class="dim-tag active">价格变动</span>
+                    <span class="dim-tag active">产品更新</span>
+                    <span class="dim-tag">营销活动</span>
+                    <span class="dim-tag">内容动态</span>
+                </div>
+
+                <div class="demo-alert">
+                    <div class="alert-badge">新发现</div>
+                    <p>检测到产品价格从 <strong>¥199</strong> 变为 <strong>¥179</strong>，降价 10%！</p>
+                    <span class="alert-time">10分钟前</span>
+                </div>
+
+                <div class="demo-hint">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 16v-4M12 8h.01"/>
+                    </svg>
+                    真实的监控会在下方"告警列表"中显示
+                </div>
+            </div>
+        </section>
+
         <!-- 统计概览 -->
-        <section class="stats-section">
+        <section class="stats-section" id="statsSection" style="display: none;">
             <div class="stat-card">
-                <span class="stat-value" id="totalMonitors">-</span>
+                <span class="stat-value" id="totalMonitors">0</span>
                 <span class="stat-label">监控中</span>
             </div>
             <div class="stat-card">
-                <span class="stat-value" id="activeMonitors">-</span>
+                <span class="stat-value" id="activeMonitors">0</span>
                 <span class="stat-label">活跃</span>
             </div>
-            <div class="stat-card alert">
-                <span class="stat-value" id="unreadAlerts">-</span>
+            <div class="stat-card alert" id="alertCard" style="display: none;">
+                <span class="stat-value" id="unreadAlerts">0</span>
                 <span class="stat-label">新告警</span>
             </div>
             <div class="stat-card">
-                <span class="stat-value" id="totalAlerts">-</span>
+                <span class="stat-value" id="totalAlerts">0</span>
                 <span class="stat-label">总告警</span>
             </div>
         </section>
@@ -58,31 +147,34 @@
         <!-- 主内容区 -->
         <main class="skill-content">
             <!-- 监控列表 -->
-            <section class="monitors-section">
-                <h2 class="section-title">
-                    <span>监控列表</span>
+            <section class="monitors-section" id="monitorsSection" style="display: none;">
+                <div class="section-header">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                        正在监控的竞品
+                    </h2>
                     <span class="count-badge" id="monitorCount">0</span>
-                </h2>
+                </div>
                 <div class="monitor-list" id="monitorList">
                     <!-- 动态加载 -->
                 </div>
             </section>
 
             <!-- 告警列表 -->
-            <section class="alerts-section">
-                <h2 class="section-title">
-                    <span>最近告警</span>
+            <section class="alerts-section" id="alertsSection" style="display: none;">
+                <div class="section-header">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+                        </svg>
+                        最新发现的变化
+                    </h2>
                     <button class="ui-btn ui-btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="showAllAlerts()">查看全部</button>
-                </h2>
-                <div class="alert-list" id="alertList">
-                    <!-- 动态加载 -->
                 </div>
-            </section>
-
-            <!-- 对比矩阵 -->
-            <section class="matrix-section" id="matrixSection" style="display: none;">
-                <h2 class="section-title">对比矩阵</h2>
-                <div class="matrix-container" id="matrixContainer">
+                <div class="alert-list" id="alertList">
                     <!-- 动态加载 -->
                 </div>
             </section>
@@ -93,46 +185,56 @@
     <div class="modal" id="addModal">
         <div class="modal-content">
             <h3>添加竞品监控</h3>
+            <p class="modal-tip">填写您想关注的公司信息，我们会每天帮您查看</p>
+            
             <div class="form-group">
-                <label>竞品名称 *</label>
-                <input type="text" id="competitorName" class="ui-input" placeholder="例如：阿里巴巴">
+                <label>竞品公司名称 <span class="required">*</span></label>
+                <input type="text" id="competitorName" class="ui-input" placeholder="例如：阿里巴巴、京东">
             </div>
+            
             <div class="form-group">
-                <label>官网链接</label>
-                <input type="url" id="competitorUrl" class="ui-input" placeholder="https://...">
+                <label>公司官网 <span class="optional">（选填）</span></label>
+                <input type="url" id="competitorUrl" class="ui-input" placeholder="https://www.example.com">
+                <p class="input-hint">填网址能更准确地监控</p>
             </div>
+            
             <div class="form-group">
-                <label>监控维度</label>
+                <label>关注哪些方面？</label>
                 <div class="checkbox-group">
                     <label class="checkbox-item">
                         <input type="checkbox" value="price" checked>
-                        <span>价格变动</span>
+                        <span>💰 价格变动</span>
+                        <small>产品涨价/降价</small>
                     </label>
                     <label class="checkbox-item">
                         <input type="checkbox" value="product" checked>
-                        <span>产品更新</span>
+                        <span>🎁 产品更新</span>
+                        <small>新产品/新功能</small>
                     </label>
                     <label class="checkbox-item">
                         <input type="checkbox" value="marketing">
-                        <span>营销活动</span>
+                        <span>🎉 营销活动</span>
+                        <small>促销/折扣/广告</small>
                     </label>
                     <label class="checkbox-item">
                         <input type="checkbox" value="content">
-                        <span>内容动态</span>
+                        <span>📝 内容动态</span>
+                        <small>新闻/博客/公告</small>
                     </label>
                 </div>
             </div>
+            
             <div class="modal-actions">
                 <button class="ui-btn ui-btn-secondary" onclick="closeModal()">取消</button>
-                <button class="ui-btn ui-btn-primary" onclick="addMonitor()">添加</button>
+                <button class="ui-btn ui-btn-primary" onclick="addMonitor()">开始监控</button>
             </div>
         </div>
     </div>
 
     <!-- 依赖库 -->
-    <script src="../../js/utils.js?v=2"></script>
-    <script src="../../js/api.js?v=2"></script>
-    <script src="../../js/ui.js?v=2"></script>
-    <script src="app.js?v=2"></script>
+    <script src="../../js/utils.js?v=3"></script>
+    <script src="../../js/api.js?v=3"></script>
+    <script src="../../js/ui.js?v=3"></script>
+    <script src="app.js?v=3"></script>
 </body>
 </html>
