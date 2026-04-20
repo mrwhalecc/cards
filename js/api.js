@@ -43,7 +43,7 @@ const CardsAPI = (() => {
             // 处理认证失败（测试模式下不跳转）
             if (response.status === 401 && !isTestMode) {
                 localStorage.removeItem('boss_token');
-                window.location.href = '/login.html';
+                window.location.href = 'https://boss.mrwhalex.com/login.html';
                 return null;
             }
 
