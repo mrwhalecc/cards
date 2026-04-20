@@ -129,8 +129,8 @@ const CompetitorIntel = (() => {
                 <div class="monitor-footer">
                     <span class="last-check">上次检查: ${m.lastCheckAt ? Utils.formatDate(m.lastCheckAt) : '未检查'}</span>
                     <div class="monitor-actions">
-                        <button class="action-btn" onclick="CompetitorIntel.checkMonitor('${m.id}')">检查</button>
-                        <button class="action-btn danger" onclick="CompetitorIntel.deleteMonitor('${m.id}')">删除</button>
+                        <button class="ui-btn ui-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="CompetitorIntel.checkMonitor('${m.id}')">检查</button>
+                        <button class="ui-btn" style="padding: 6px 12px; font-size: 12px; background: #fee2e2; color: #ef4444; border: none;" onclick="CompetitorIntel.deleteMonitor('${m.id}')">删除</button>
                     </div>
                 </div>
             </div>
