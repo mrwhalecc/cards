@@ -6,6 +6,10 @@
 const CardsAPI = (() => {
     const API_BASE = 'https://chatapi.mrwhalex.com';
     
+    // 检查测试模式
+    const urlParams = new URLSearchParams(window.location.search);
+    const isTestMode = urlParams.get('test') === '1';
+    
     /**
      * 获取认证Token
      */
@@ -36,8 +40,8 @@ const CardsAPI = (() => {
         try {
             const response = await fetch(url, config);
             
-            // 处理认证失败
-            if (response.status === 401) {
+            // 处理认证失败（测试模式下不跳转）
+            if (response.status === 401 && !isTestMode) {
                 localStorage.removeItem('boss_token');
                 window.location.href = '/login.html';
                 return null;
