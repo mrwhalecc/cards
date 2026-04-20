@@ -1,5 +1,5 @@
 /* ============================================================
-   竞品情报员 - Skill逻辑
+   竞品情报员 - 生产级Skill逻辑
    调用chatapi后端: /api/cards/competitor-intel/*
    ============================================================ */
 
@@ -11,6 +11,7 @@ const CompetitorIntel = (() => {
     let monitors = [];
     let alerts = [];
     let isLoading = false;
+    let currentEditingId = null;
 
     /**
      * 初始化
@@ -28,12 +29,15 @@ const CompetitorIntel = (() => {
         }
 
         // 绑定事件
-        document.getElementById('addBtn').addEventListener('click', showModal);
+        document.getElementById('addBtn').addEventListener('click', () => showModal());
         document.getElementById('refreshBtn').addEventListener('click', refreshAll);
         document.getElementById('addModal').addEventListener('click', (e) => {
             if (e.target.id === 'addModal') closeModal();
         });
 
+        // 显示加载状态
+        showLoading();
+        
         // 加载数据
         loadData();
 
@@ -42,19 +46,77 @@ const CompetitorIntel = (() => {
     }
 
     /**
+     * 显示加载状态
+     */
+    function showLoading() {
+        document.getElementById('monitorList').innerHTML = createSkeleton();
+        document.getElementById('alertList').innerHTML = createSkeleton();
+    }
+
+    /**
+     * 创建骨架屏
+     */
+    function createSkeleton() {
+        return `
+            <div class="skeleton-card">
+                <div class="skeleton-header">
+                    <div class="skeleton-avatar"></div>
+                    <div class="skeleton-lines">
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line short"></div>
+                    </div>
+                </div>
+                <div class="skeleton-tags">
+                    <div class="skeleton-tag"></div>
+                    <div class="skeleton-tag"></div>
+                </div>
+            </div>
+        `.repeat(3);
+    }
+
+    /**
      * 加载所有数据
      */
     async function loadData() {
         try {
-            await Promise.all([
-                loadStats(),
-                loadMonitors(),
-                loadAlerts()
+            const [statsResult, monitorsResult, alertsResult] = await Promise.all([
+                loadStats().catch(err => ({ error: err })),
+                loadMonitors().catch(err => ({ error: err })),
+                loadAlerts().catch(err => ({ error: err }))
             ]);
+
+            // 检查是否有错误
+            const errors = [];
+            if (statsResult.error) errors.push('统计加载失败');
+            if (monitorsResult.error) errors.push('监控列表加载失败');
+            if (alertsResult.error) errors.push('告警加载失败');
+            
+            if (errors.length > 0) {
+                console.error('部分数据加载失败:', errors);
+                UI.showToast('部分数据加载失败，请刷新重试', 'warning');
+            }
         } catch (error) {
             console.error('加载数据失败:', error);
-            UI.showToast('加载数据失败', 'error');
+            UI.showToast('加载数据失败，请检查网络', 'error');
+            renderErrorState();
         }
+    }
+
+    /**
+     * 渲染错误状态
+     */
+    function renderErrorState() {
+        const list = document.getElementById('monitorList');
+        list.innerHTML = `
+            <div class="error-state">
+                <div class="error-icon">⚠️</div>
+                <div class="error-title">加载失败</div>
+                <div class="error-desc">网络异常，请检查网络连接后重试</div>
+                <button class="ui-btn ui-btn-primary" onclick="CompetitorIntel.loadData()">
+                    重新加载
+                </button>
+            </div>
+        `;
     }
 
     /**
@@ -64,13 +126,20 @@ const CompetitorIntel = (() => {
         try {
             const result = await CardsAPI.request(`${API_BASE}/stats`);
             if (result.success) {
-                document.getElementById('totalMonitors').textContent = result.data.totalMonitors;
-                document.getElementById('activeMonitors').textContent = result.data.activeMonitors;
-                document.getElementById('unreadAlerts').textContent = result.data.unreadAlerts;
-                document.getElementById('totalAlerts').textContent = result.data.totalAlerts;
+                document.getElementById('totalMonitors').textContent = result.data.totalMonitors || 0;
+                document.getElementById('activeMonitors').textContent = result.data.activeMonitors || 0;
+                document.getElementById('unreadAlerts').textContent = result.data.unreadAlerts || 0;
+                document.getElementById('totalAlerts').textContent = result.data.totalAlerts || 0;
+                
+                // 有新告警时高亮显示
+                if (result.data.unreadAlerts > 0) {
+                    document.getElementById('alertCard').style.display = 'flex';
+                }
             }
+            return result;
         } catch (error) {
             console.error('加载统计失败:', error);
+            throw error;
         }
     }
 
@@ -81,17 +150,14 @@ const CompetitorIntel = (() => {
         try {
             const result = await CardsAPI.request(`${API_BASE}/monitors`);
             if (result.success) {
-                monitors = result.data;
+                monitors = result.data || [];
                 renderMonitors();
-                
-                // 如果有多于1个监控，显示对比矩阵
-                if (monitors.length > 1) {
-                    loadMatrix();
-                }
             }
+            return result;
         } catch (error) {
             console.error('加载监控列表失败:', error);
             renderEmptyMonitors();
+            throw error;
         }
     }
 
@@ -117,8 +183,8 @@ const CompetitorIntel = (() => {
             <div class="monitor-card ${m.status === 'active' ? '' : 'paused'}" data-id="${m.id}">
                 <div class="monitor-main">
                     <div class="monitor-info">
-                        <h3 class="monitor-name">${m.name}</h3>
-                        ${m.url ? `<a href="${m.url}" target="_blank" class="monitor-url">${m.url}</a>` : ''}
+                        <h3 class="monitor-name">${escapeHtml(m.name)}</h3>
+                        ${m.url ? `<a href="${escapeHtml(m.url)}" target="_blank" class="monitor-url">${escapeHtml(m.url)}</a>` : ''}
                     </div>
                     <div class="monitor-status">
                         <span class="status-dot ${m.status}"></span>
@@ -127,13 +193,14 @@ const CompetitorIntel = (() => {
                 </div>
                 
                 <div class="monitor-dimensions">
-                    ${m.dimensions.map(d => `<span class="dim-tag">${getDimensionLabel(d)}</span>`).join('')}
+                    ${(m.dimensions || []).map(d => `<span class="dim-tag">${getDimensionLabel(d)}</span>`).join('')}
                 </div>
                 
                 <div class="monitor-footer">
-                    <span class="last-check">上次检查: ${m.lastCheckAt ? Utils.formatDate(m.lastCheckAt) : '未检查'}</span>
+                    <span class="last-check">上次检查: ${m.lastCheckAt ? formatDate(m.lastCheckAt) : '未检查'}</span>
                     <div class="monitor-actions">
                         <button class="ui-btn ui-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="CompetitorIntel.checkMonitor('${m.id}')">检查</button>
+                        <button class="ui-btn ui-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="CompetitorIntel.editMonitor('${m.id}')">编辑</button>
                         <button class="ui-btn" style="padding: 6px 12px; font-size: 12px; background: #fee2e2; color: #ef4444; border: none;" onclick="CompetitorIntel.deleteMonitor('${m.id}')">删除</button>
                     </div>
                 </div>
@@ -184,12 +251,14 @@ const CompetitorIntel = (() => {
         try {
             const result = await CardsAPI.request(`${API_BASE}/alerts?limit=10`);
             if (result.success) {
-                alerts = result.data;
+                alerts = result.data || [];
                 renderAlerts();
             }
+            return result;
         } catch (error) {
             console.error('加载告警失败:', error);
             renderEmptyAlerts();
+            throw error;
         }
     }
 
@@ -205,12 +274,12 @@ const CompetitorIntel = (() => {
         }
 
         list.innerHTML = alerts.map(a => `
-            <div class="alert-item ${a.isRead ? 'read' : 'unread'}" data-id="${a.id}" onclick="CompetitorIntel.readAlert('${a.id}')">
-                <div class="alert-icon">🔔</div>
+            <div class="alert-item ${a.isRead ? 'read' : 'unread'}" data-id="${a.id}" onclick="CompetitorIntel.showAlertDetail('${a.id}')">
+                <div class="alert-icon">${getAlertIcon(a.type)}</div>
                 <div class="alert-content">
-                    <div class="alert-title">${a.competitorName}</div>
-                    <div class="alert-desc">${a.content}</div>
-                    <div class="alert-time">${Utils.formatDate(a.createdAt)}</div>
+                    <div class="alert-title">${escapeHtml(a.competitorName || '未知竞品')}</div>
+                    <div class="alert-desc">${escapeHtml(a.content || '')}</div>
+                    <div class="alert-time">${formatDate(a.createdAt)}</div>
                 </div>
                 ${!a.isRead ? '<div class="alert-dot"></div>' : ''}
             </div>
@@ -224,64 +293,95 @@ const CompetitorIntel = (() => {
         const list = document.getElementById('alertList');
         list.innerHTML = `
             <div class="ui-empty small">
+                <div class="ui-empty-icon">🔔</div>
                 <div class="ui-empty-title">暂无告警</div>
+                <div class="ui-empty-desc">当检测到竞品变化时会在这里显示</div>
             </div>
         `;
     }
 
     /**
-     * 加载对比矩阵
+     * 显示告警详情
      */
-    async function loadMatrix() {
-        try {
-            const result = await CardsAPI.request(`${API_BASE}/matrix`);
-            if (result.success) {
-                renderMatrix(result.data);
-            }
-        } catch (error) {
-            console.error('加载矩阵失败:', error);
-        }
-    }
+    function showAlertDetail(id) {
+        const alert = alerts.find(a => a.id === id);
+        if (!alert) return;
 
-    /**
-     * 渲染对比矩阵
-     */
-    function renderMatrix(data) {
-        const section = document.getElementById('matrixSection');
-        const container = document.getElementById('matrixContainer');
-        
-        section.style.display = 'block';
-        
-        const dimensions = data.dimensions;
-        const competitors = data.competitors;
-        
-        container.innerHTML = `
-            <table class="matrix-table">
-                <thead>
-                    <tr>
-                        <th>竞品</th>
-                        ${dimensions.map(d => `<th>${data.dimensionLabels[d]}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${competitors.map(c => `
-                        <tr>
-                            <td class="matrix-name">${c.name}</td>
-                            ${dimensions.map(d => `
-                                <td>${c.dimensions.includes(d) ? '✅' : '❌'}</td>
-                            `).join('')}
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+        // 显示详情弹窗
+        const modal = document.createElement('div');
+        modal.className = 'modal show';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <h3>告警详情</h3>
+                <div class="alert-detail">
+                    <div class="detail-row">
+                        <span class="detail-label">竞品：</span>
+                        <span class="detail-value">${escapeHtml(alert.competitorName)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">类型：</span>
+                        <span class="detail-value">${getDimensionLabel(alert.type)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">时间：</span>
+                        <span class="detail-value">${formatDate(alert.createdAt)}</span>
+                    </div>
+                    <div class="detail-content">
+                        <div class="detail-label">变化内容：</div>
+                        <div class="detail-text">${escapeHtml(alert.content)}</div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="ui-btn ui-btn-secondary" onclick="this.closest('.modal').remove()">关闭</button>
+                    ${!alert.isRead ? `<button class="ui-btn ui-btn-primary" onclick="CompetitorIntel.readAlert('${alert.id}'); this.closest('.modal').remove()">标记已读</button>` : ''}
+                </div>
+            </div>
         `;
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        document.body.appendChild(modal);
     }
 
     /**
-     * 显示添加弹窗
+     * 显示添加/编辑弹窗
      */
-    function showModal() {
-        document.getElementById('addModal').classList.add('show');
+    function showModal(monitorId = null) {
+        currentEditingId = monitorId;
+        const modal = document.getElementById('addModal');
+        const title = modal.querySelector('h3');
+        const btn = modal.querySelector('.ui-btn-primary');
+        
+        if (monitorId) {
+            // 编辑模式
+            const monitor = monitors.find(m => m.id === monitorId);
+            if (!monitor) return;
+            
+            title.textContent = '编辑竞品监控';
+            btn.textContent = '保存修改';
+            document.getElementById('competitorName').value = monitor.name || '';
+            document.getElementById('competitorUrl').value = monitor.url || '';
+            
+            // 设置维度选中状态
+            const checkboxes = modal.querySelectorAll('.checkbox-item input');
+            checkboxes.forEach(cb => {
+                cb.checked = monitor.dimensions && monitor.dimensions.includes(cb.value);
+            });
+        } else {
+            // 添加模式
+            title.textContent = '添加竞品监控';
+            btn.textContent = '开始监控';
+            document.getElementById('competitorName').value = '';
+            document.getElementById('competitorUrl').value = '';
+            
+            // 重置维度选中状态
+            const checkboxes = modal.querySelectorAll('.checkbox-item input');
+            checkboxes.forEach(cb => {
+                cb.checked = ['price', 'product'].includes(cb.value);
+            });
+        }
+        
+        modal.classList.add('show');
         document.getElementById('competitorName').focus();
     }
 
@@ -290,13 +390,11 @@ const CompetitorIntel = (() => {
      */
     function closeModal() {
         document.getElementById('addModal').classList.remove('show');
-        // 清空表单
-        document.getElementById('competitorName').value = '';
-        document.getElementById('competitorUrl').value = '';
+        currentEditingId = null;
     }
 
     /**
-     * 添加监控
+     * 添加/编辑监控
      */
     async function addMonitor() {
         const name = document.getElementById('competitorName').value.trim();
@@ -319,37 +417,57 @@ const CompetitorIntel = (() => {
         }
 
         const btn = document.querySelector('#addModal .ui-btn-primary');
+        const originalText = btn.textContent;
         btn.disabled = true;
-        btn.textContent = '添加中...';
+        btn.innerHTML = '<span class="spinner-small"></span>保存中...';
 
         try {
-            const result = await CardsAPI.request(`${API_BASE}/monitors`, {
-                method: 'POST',
-                body: { name, url, dimensions }
-            });
+            let result;
+            if (currentEditingId) {
+                // 编辑模式
+                result = await CardsAPI.request(`${API_BASE}/monitors/${currentEditingId}`, {
+                    method: 'PUT',
+                    body: { name, url, dimensions }
+                });
+            } else {
+                // 添加模式
+                result = await CardsAPI.request(`${API_BASE}/monitors`, {
+                    method: 'POST',
+                    body: { name, url, dimensions }
+                });
+            }
 
             if (result.success) {
-                UI.showToast('添加成功', 'success');
+                UI.showToast(currentEditingId ? '修改成功' : '添加成功', 'success');
                 closeModal();
                 loadData(); // 刷新所有数据
+            } else {
+                throw new Error(result.error || '操作失败');
             }
         } catch (error) {
-            UI.showToast('添加失败: ' + error.message, 'error');
+            console.error('保存失败:', error);
+            UI.showToast('保存失败: ' + (error.message || '网络错误'), 'error');
         } finally {
             btn.disabled = false;
-            btn.textContent = '添加';
+            btn.textContent = originalText;
         }
+    }
+
+    /**
+     * 编辑监控
+     */
+    function editMonitor(id) {
+        showModal(id);
     }
 
     /**
      * 检查单个监控
      */
     async function checkMonitor(id) {
-        const btn = document.querySelector(`[data-id="${id}"] .action-btn`);
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = '检查中...';
-        }
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-small"></span>检查中';
 
         try {
             const result = await CardsAPI.request(`${API_BASE}/monitors/${id}/check`, {
@@ -358,16 +476,21 @@ const CompetitorIntel = (() => {
 
             if (result.success) {
                 const newAlerts = result.data.newAlerts;
-                UI.showToast(`检查完成，发现 ${newAlerts} 个变化`, newAlerts > 0 ? 'success' : 'info');
+                if (newAlerts > 0) {
+                    UI.showToast(`发现 ${newAlerts} 个变化！`, 'success');
+                } else {
+                    UI.showToast('暂无变化', 'info');
+                }
                 loadData();
+            } else {
+                throw new Error(result.error || '检查失败');
             }
         } catch (error) {
-            UI.showToast('检查失败', 'error');
+            console.error('检查失败:', error);
+            UI.showToast('检查失败: ' + (error.message || '网络错误'), 'error');
         } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.textContent = '检查';
-            }
+            btn.disabled = false;
+            btn.textContent = originalText;
         }
     }
 
@@ -375,7 +498,7 @@ const CompetitorIntel = (() => {
      * 删除监控
      */
     async function deleteMonitor(id) {
-        const confirmed = await UI.confirm('确定要删除这个监控吗？');
+        const confirmed = await UI.confirm('确定要删除这个监控吗？删除后将无法恢复。');
         if (!confirmed) return;
 
         try {
@@ -386,9 +509,12 @@ const CompetitorIntel = (() => {
             if (result.success) {
                 UI.showToast('删除成功', 'success');
                 loadData();
+            } else {
+                throw new Error(result.error || '删除失败');
             }
         } catch (error) {
-            UI.showToast('删除失败', 'error');
+            console.error('删除失败:', error);
+            UI.showToast('删除失败: ' + (error.message || '网络错误'), 'error');
         }
     }
 
@@ -411,11 +537,18 @@ const CompetitorIntel = (() => {
 
             if (result.success) {
                 const newAlerts = result.data.newAlerts;
-                UI.showToast(`刷新完成，发现 ${newAlerts} 个变化`, newAlerts > 0 ? 'success' : 'info');
+                if (newAlerts > 0) {
+                    UI.showToast(`发现 ${newAlerts} 个变化！`, 'success');
+                } else {
+                    UI.showToast('暂无新变化', 'info');
+                }
                 loadData();
+            } else {
+                throw new Error(result.error || '刷新失败');
             }
         } catch (error) {
-            UI.showToast('刷新失败', 'error');
+            console.error('刷新失败:', error);
+            UI.showToast('刷新失败: ' + (error.message || '网络错误'), 'error');
         } finally {
             isLoading = false;
             btn.classList.remove('spinning');
@@ -440,6 +573,7 @@ const CompetitorIntel = (() => {
             }
         } catch (error) {
             console.error('标记已读失败:', error);
+            UI.showToast('操作失败', 'error');
         }
     }
 
@@ -456,25 +590,74 @@ const CompetitorIntel = (() => {
      */
     function getDimensionLabel(dim) {
         const labels = {
-            price: '价格',
-            product: '产品',
-            marketing: '营销',
-            content: '内容'
+            price: '价格变动',
+            product: '产品更新',
+            marketing: '营销活动',
+            content: '内容动态',
+            other: '其他变化'
         };
         return labels[dim] || dim;
+    }
+
+    /**
+     * 获取告警图标
+     */
+    function getAlertIcon(type) {
+        const icons = {
+            price: '💰',
+            product: '🎁',
+            marketing: '🎉',
+            content: '📝',
+            other: '🔔'
+        };
+        return icons[type] || '🔔';
+    }
+
+    /**
+     * HTML转义，防止XSS
+     */
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
+     * 格式化日期
+     */
+    function formatDate(dateString) {
+        if (!dateString) return '未知时间';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now - date;
+        
+        // 小于1分钟
+        if (diff < 60000) return '刚刚';
+        // 小于1小时
+        if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
+        // 小于24小时
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
+        // 小于7天
+        if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`;
+        
+        return date.toLocaleDateString('zh-CN');
     }
 
     // 暴露接口
     return {
         init,
+        loadData,
         showModal,
         closeModal,
         addMonitor,
+        editMonitor,
         checkMonitor,
         deleteMonitor,
         refreshAll,
         readAlert,
-        showAllAlerts
+        showAllAlerts,
+        showAlertDetail
     };
 })();
 
