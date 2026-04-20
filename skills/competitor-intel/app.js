@@ -16,8 +16,12 @@ const CompetitorIntel = (() => {
      * 初始化
      */
     function init() {
-        // 检查登录状态 - 未登录跳转到boss登录页
-        if (!CardsAPI.getToken()) {
+        // 检查是否是测试模式（URL参数 ?test=1）
+        const urlParams = new URLSearchParams(window.location.search);
+        const isTestMode = urlParams.get('test') === '1';
+
+        // 如果不是测试模式且没有token，跳转到boss登录页
+        if (!isTestMode && !CardsAPI.getToken()) {
             const currentUrl = encodeURIComponent(window.location.href);
             window.location.href = `https://boss.mrwhalex.com/login.html?redirect=${currentUrl}`;
             return;
