@@ -3,15 +3,53 @@
    调用chatapi后端: /api/cards/competitor-intel/*
    ============================================================ */
 
+// 缓存管理
+const Cache = {
+    KEY: 'competitor_intel_data',
+    EXPIRE_TIME: 24 * 60 * 60 * 1000, // 24小时过期
+
+    get() {
+        try {
+            const data = localStorage.getItem(this.KEY);
+            if (!data) return null;
+            const parsed = JSON.parse(data);
+            // 检查是否过期
+            if (Date.now() - parsed.timestamp > this.EXPIRE_TIME) {
+                localStorage.removeItem(this.KEY);
+                return null;
+            }
+            return parsed.data;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    set(data) {
+        try {
+            localStorage.setItem(this.KEY, JSON.stringify({
+                timestamp: Date.now(),
+                data: data
+            }));
+        } catch (e) {
+            console.warn('缓存保存失败:', e);
+        }
+    },
+
+    clear() {
+        localStorage.removeItem(this.KEY);
+    }
+};
+
 const CompetitorIntel = (() => {
     // API基础路径
     const API_BASE = '/api/admin/cards/competitor-intel';
-    
+
     // 状态
     let monitors = [];
     let alerts = [];
     let isLoading = false;
     let currentEditingId = null;
+    let isOnline = navigator.onLine;
 
     /**
      * 初始化
@@ -35,14 +73,66 @@ const CompetitorIntel = (() => {
             if (e.target.id === 'addModal') closeModal();
         });
 
-        // 显示加载状态
-        showLoading();
-        
-        // 加载数据
+        // 监听网络状态
+        window.addEventListener('online', () => {
+            isOnline = true;
+            UI.showToast('网络已恢复', 'success');
+            loadData(); // 网络恢复后刷新数据
+        });
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            UI.showToast('已进入离线模式', 'warning');
+        });
+
+        // 先尝试从缓存加载，快速显示界面
+        const cachedData = Cache.get();
+        if (cachedData) {
+            renderFromCache(cachedData);
+        } else {
+            showLoading();
+        }
+
+        // 加载数据（网络请求）
         loadData();
 
         // 定时刷新（每5分钟）
         setInterval(refreshAll, 5 * 60 * 1000);
+    }
+
+    /**
+     * 从缓存渲染
+     */
+    function renderFromCache(data) {
+        if (data.monitors && data.monitors.length > 0) {
+            monitors = data.monitors;
+            renderMonitors();
+        }
+        if (data.alerts) {
+            alerts = data.alerts;
+            renderAlerts();
+        }
+        if (data.stats) {
+            document.getElementById('totalMonitors').textContent = data.stats.totalMonitors || 0;
+            document.getElementById('activeMonitors').textContent = data.stats.activeMonitors || 0;
+            document.getElementById('unreadAlerts').textContent = data.stats.unreadAlerts || 0;
+            document.getElementById('totalAlerts').textContent = data.stats.totalAlerts || 0;
+        }
+    }
+
+    /**
+     * 保存到缓存
+     */
+    function saveToCache() {
+        Cache.set({
+            monitors,
+            alerts,
+            stats: {
+                totalMonitors: parseInt(document.getElementById('totalMonitors').textContent) || 0,
+                activeMonitors: parseInt(document.getElementById('activeMonitors').textContent) || 0,
+                unreadAlerts: parseInt(document.getElementById('unreadAlerts').textContent) || 0,
+                totalAlerts: parseInt(document.getElementById('totalAlerts').textContent) || 0
+            }
+        });
     }
 
     /**
@@ -78,6 +168,19 @@ const CompetitorIntel = (() => {
      * 加载所有数据
      */
     async function loadData() {
+        // 检查是否在线
+        if (!isOnline) {
+            const cachedData = Cache.get();
+            if (cachedData) {
+                UI.showToast('已加载缓存数据', 'info');
+                renderFromCache(cachedData);
+            } else {
+                renderErrorState();
+                UI.showToast('网络已断开，暂无缓存数据', 'error');
+            }
+            return;
+        }
+
         try {
             const [statsResult, monitorsResult, alertsResult] = await Promise.all([
                 loadStats().catch(err => ({ error: err })),
@@ -90,15 +193,32 @@ const CompetitorIntel = (() => {
             if (statsResult.error) errors.push('统计加载失败');
             if (monitorsResult.error) errors.push('监控列表加载失败');
             if (alertsResult.error) errors.push('告警加载失败');
-            
+
             if (errors.length > 0) {
                 console.error('部分数据加载失败:', errors);
-                UI.showToast('部分数据加载失败，请刷新重试', 'warning');
+                // 如果有缓存，显示缓存数据
+                const cachedData = Cache.get();
+                if (cachedData && errors.length === 3) {
+                    UI.showToast('网络异常，已加载缓存数据', 'warning');
+                    renderFromCache(cachedData);
+                } else {
+                    UI.showToast('部分数据加载失败，请刷新重试', 'warning');
+                }
+            } else {
+                // 全部成功，保存到缓存
+                saveToCache();
             }
         } catch (error) {
             console.error('加载数据失败:', error);
-            UI.showToast('加载数据失败，请检查网络', 'error');
-            renderErrorState();
+            // 尝试使用缓存
+            const cachedData = Cache.get();
+            if (cachedData) {
+                UI.showToast('网络异常，已加载缓存数据', 'warning');
+                renderFromCache(cachedData);
+            } else {
+                UI.showToast('加载数据失败，请检查网络', 'error');
+                renderErrorState();
+            }
         }
     }
 
@@ -135,6 +255,7 @@ const CompetitorIntel = (() => {
                 if (result.data.unreadAlerts > 0) {
                     document.getElementById('alertCard').style.display = 'flex';
                 }
+                saveToCache(); // 保存到缓存
             }
             return result;
         } catch (error) {
@@ -152,6 +273,7 @@ const CompetitorIntel = (() => {
             if (result.success) {
                 monitors = result.data || [];
                 renderMonitors();
+                saveToCache(); // 保存到缓存
             }
             return result;
         } catch (error) {
@@ -253,6 +375,7 @@ const CompetitorIntel = (() => {
             if (result.success) {
                 alerts = result.data || [];
                 renderAlerts();
+                saveToCache(); // 保存到缓存
             }
             return result;
         } catch (error) {
@@ -440,7 +563,8 @@ const CompetitorIntel = (() => {
             if (result.success) {
                 UI.showToast(currentEditingId ? '修改成功' : '添加成功', 'success');
                 closeModal();
-                loadData(); // 刷新所有数据
+                await loadData(); // 刷新所有数据
+                saveToCache(); // 保存到缓存
             } else {
                 throw new Error(result.error || '操作失败');
             }
@@ -508,7 +632,8 @@ const CompetitorIntel = (() => {
 
             if (result.success) {
                 UI.showToast('删除成功', 'success');
-                loadData();
+                await loadData();
+                saveToCache(); // 保存到缓存
             } else {
                 throw new Error(result.error || '删除失败');
             }
@@ -570,6 +695,7 @@ const CompetitorIntel = (() => {
                 alert.isRead = true;
                 renderAlerts();
                 loadStats();
+                saveToCache(); // 保存到缓存
             }
         } catch (error) {
             console.error('标记已读失败:', error);
