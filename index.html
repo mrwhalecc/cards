@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Boss Cards - Skill测试中心</title>
+    <meta name="description" content="Boss Skill开发与测试环境">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/cards.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部导航 -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="header-title">Cards测试中心</h1>
+            </div>
+            <div class="header-right">
+                <span class="env-badge">测试环境</span>
+                <button class="header-btn" id="userMenuBtn">账户</button>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- Skill分类标签 -->
+            <nav class="category-tabs">
+                <button class="tab-btn active" data-category="all">全部</button>
+                <button class="tab-btn" data-category="business">商业场景</button>
+                <button class="tab-btn" data-category="growth">求是成长</button>
+                <button class="tab-btn" data-category="test">轻松测试</button>
+            </nav>
+
+            <!-- Skill网格 -->
+            <div class="skills-grid" id="skillsGrid">
+                <!-- 动态加载 -->
+            </div>
+        </main>
+
+        <!-- 底部信息 -->
+        <footer class="app-footer">
+            <p>复用chatapi后端 | 数据存储在现有D1 | 测试完成后迁移到Boss</p>
+        </footer>
+    </div>
+
+    <!-- 脚本 -->
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/cards.js"></script>
+    <script>
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            CardsApp.init();
+        });
+    </script>
+</body>
+</html>

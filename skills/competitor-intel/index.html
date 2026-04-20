@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>竞品情报员 - Cards</title>
+    <meta name="description" content="持续监控竞品动态，变化自动告警">
+    
+    <!-- 样式 -->
+    <link rel="stylesheet" href="../../css/variables.css">
+    <link rel="stylesheet" href="../../css/ui.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="skill-page">
+        <!-- 顶部导航 -->
+        <header class="skill-header">
+            <button class="back-btn" onclick="history.back()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h1>竞品情报员</h1>
+            <div class="header-actions">
+                <button class="refresh-btn" id="refreshBtn" title="刷新全部">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                    </svg>
+                </button>
+                <button class="add-btn" id="addBtn" title="添加监控">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- 统计概览 -->
+        <section class="stats-section">
+            <div class="stat-card">
+                <span class="stat-value" id="totalMonitors">-</span>
+                <span class="stat-label">监控中</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="activeMonitors">-</span>
+                <span class="stat-label">活跃</span>
+            </div>
+            <div class="stat-card alert">
+                <span class="stat-value" id="unreadAlerts">-</span>
+                <span class="stat-label">新告警</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="totalAlerts">-</span>
+                <span class="stat-label">总告警</span>
+            </div>
+        </section>
+
+        <!-- 主内容区 -->
+        <main class="skill-content">
+            <!-- 监控列表 -->
+            <section class="monitors-section">
+                <h2 class="section-title">
+                    <span>监控列表</span>
+                    <span class="count-badge" id="monitorCount">0</span>
+                </h2>
+                <div class="monitor-list" id="monitorList">
+                    <!-- 动态加载 -->
+                </div>
+            </section>
+
+            <!-- 告警列表 -->
+            <section class="alerts-section">
+                <h2 class="section-title">
+                    <span>最近告警</span>
+                    <button class="view-all-btn" onclick="showAllAlerts()">查看全部</button>
+                </h2>
+                <div class="alert-list" id="alertList">
+                    <!-- 动态加载 -->
+                </div>
+            </section>
+
+            <!-- 对比矩阵 -->
+            <section class="matrix-section" id="matrixSection" style="display: none;">
+                <h2 class="section-title">对比矩阵</h2>
+                <div class="matrix-container" id="matrixContainer">
+                    <!-- 动态加载 -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 添加监控弹窗 -->
+    <div class="modal" id="addModal">
+        <div class="modal-content">
+            <h3>添加竞品监控</h3>
+            <div class="form-group">
+                <label>竞品名称 *</label>
+                <input type="text" id="competitorName" class="ui-input" placeholder="例如：阿里巴巴">
+            </div>
+            <div class="form-group">
+                <label>官网链接</label>
+                <input type="url" id="competitorUrl" class="ui-input" placeholder="https://...">
+            </div>
+            <div class="form-group">
+                <label>监控维度</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="price" checked>
+                        <span>价格变动</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="product" checked>
+                        <span>产品更新</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="marketing">
+                        <span>营销活动</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="content">
+                        <span>内容动态</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="ui-btn ui-btn-secondary" onclick="closeModal()">取消</button>
+                <button class="ui-btn ui-btn-primary" onclick="addMonitor()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 依赖库 -->
+    <script src="../../js/utils.js"></script>
+    <script src="../../js/api.js"></script>
+    <script src="../../js/ui.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

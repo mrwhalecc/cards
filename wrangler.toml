@@ -1,0 +1,17 @@
+name = "cards"
+compatibility_date = "2024-12-01"
+
+# Cloudflare Pages配置
+[site]
+bucket = "./"
+
+# 环境变量
+[vars]
+API_BASE_URL = "https://chatapi.mrwhalex.com"
+ENVIRONMENT = "test"
+
+# 生产环境配置（上线前修改）
+# [env.production]
+# name = "cards-prod"
+# [env.production.vars]
+# ENVIRONMENT = "production"
