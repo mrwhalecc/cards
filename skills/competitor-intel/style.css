@@ -419,6 +419,10 @@
 }
 
 /* ===== 刷新按钮动画 ===== */
+.ui-btn svg {
+    display: block;
+}
+
 .refresh-btn.spinning svg {
     animation: spin 1s linear infinite;
 }
